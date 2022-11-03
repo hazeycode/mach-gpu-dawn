@@ -16,12 +16,8 @@ This repository is a separate copy of the same library in the [main Mach reposit
 Building Dawn from source using this method is simple:
 
 ```sh
-git clone https://github.com/hexops/mach-gpu-dawn
+git clone https://github.com/michal-z/mach-gpu-dawn
 cd mach-gpu-dawn
-
-rm -rf libs/mach-glfw
-git clone https://github.com/hexops/mach-glfw libs/mach-glfw
-
 zig build
 ```
 
