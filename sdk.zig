@@ -139,7 +139,7 @@ pub fn Sdk(comptime deps: anytype) type {
             lib_dawn.setTarget(step.target);
             if (!options.debug)
                 lib_dawn.strip = true;
-            lib_dawn.linkLibCpp();
+            lib_dawn.linkSystemLibraryName("c++");
             if (options.install_libs)
                 lib_dawn.install();
             step.linkLibrary(lib_dawn);
@@ -294,7 +294,7 @@ pub fn Sdk(comptime deps: anytype) type {
 
             step.addLibraryPath(target_cache_dir);
             step.linkSystemLibraryName("dawn");
-            step.linkLibCpp();
+            step.linkSystemLibraryName("c++");
 
             step.addIncludePath(include_dir);
             step.addIncludePath(sdkPath("/src/dawn"));
@@ -573,14 +573,11 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
             };
-
-            // TODO(build-system): pass system SDK options through
-            try deps.glfw.link(b, lib, .{ .system_sdk = .{ .set_sysroot = false } });
 
             var cpp_flags = std.ArrayList([]const u8).init(b.allocator);
             try options.appendFlags(&cpp_flags, false, true);
@@ -610,7 +607,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
@@ -664,7 +661,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
@@ -737,7 +734,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
@@ -1010,7 +1007,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
@@ -1159,7 +1156,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
@@ -1228,7 +1225,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
@@ -1291,7 +1288,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
@@ -1329,12 +1326,11 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
             };
-            try deps.glfw.link(b, lib, .{ .system_sdk = .{ .set_sysroot = false } });
 
             var flags = std.ArrayList([]const u8).init(b.allocator);
             try appendDawnEnableBackendTypeFlags(&flags, options);
@@ -1405,7 +1401,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 separate_lib.setTarget(step.target);
                 if (!options.debug)
                     separate_lib.strip = true;
-                separate_lib.linkLibCpp();
+                separate_lib.linkSystemLibraryName("c++");
                 if (options.install_libs)
                     separate_lib.install();
                 break :blk separate_lib;
@@ -1416,7 +1412,7 @@ pub fn Sdk(comptime deps: anytype) type {
             lib.linkSystemLibraryName("ole32");
             lib.linkSystemLibraryName("dbghelp");
             lib.linkSystemLibraryName("dxguid");
-            lib.linkLibCpp();
+            lib.linkSystemLibraryName("c++");
 
             var flags = std.ArrayList([]const u8).init(b.allocator);
             try flags.appendSlice(&.{
