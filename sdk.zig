@@ -89,8 +89,8 @@ pub fn Sdk(comptime deps: anytype) type {
         }
 
         fn linkFromSource(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !void {
-            // branch: generated-2022-08-06
-            try ensureGitRepoCloned(b.allocator, "https://github.com/hexops/dawn", "0b704c4acae154ec8d4be7615d18a489f270f6c0", sdkPath("/libs/dawn"));
+            // branch: generated-2022-11-04
+            try ensureGitRepoCloned(b.allocator, "https://github.com/michal-z/dawn", "762e368b218678e19b6c1030075ec82e370806cc", sdkPath("/libs/dawn"));
 
             // branch: mach
             try ensureGitRepoCloned(b.allocator, "https://github.com/hexops/DirectXShaderCompiler", "cff9a6f0b7f961748b822e1d313a7205dfdecf9d", sdkPath("/libs/DirectXShaderCompiler"));
@@ -886,6 +886,7 @@ pub fn Sdk(comptime deps: anytype) type {
 
                 if (isLinuxDesktopLike(step.target_info.target)) {
                     inline for ([_][]const u8{
+                        "src/dawn/native/vulkan/external_memory/MemoryService.cpp",
                         "src/dawn/native/vulkan/external_memory/MemoryServiceOpaqueFD.cpp",
                         "src/dawn/native/vulkan/external_semaphore/SemaphoreServiceFD.cpp",
                     }) |path| {
