@@ -144,12 +144,12 @@ pub fn Sdk(comptime deps: anytype) type {
                 lib_dawn.install();
             step.linkLibrary(lib_dawn);
 
-            _ = try buildLibMachDawnNative(b, lib_dawn, options);
+            //_ = try buildLibMachDawnNative(b, lib_dawn, options);
             _ = try buildLibDawnCommon(b, lib_dawn, options);
             _ = try buildLibDawnPlatform(b, lib_dawn, options);
             _ = try buildLibAbseilCpp(b, lib_dawn, options);
             _ = try buildLibDawnNative(b, lib_dawn, options);
-            _ = try buildLibDawnWire(b, lib_dawn, options);
+            //_ = try buildLibDawnWire(b, lib_dawn, options);
             _ = try buildLibDawnUtils(b, lib_dawn, options);
             _ = try buildLibSPIRVTools(b, lib_dawn, options);
             _ = try buildLibTint(b, lib_dawn, options);
