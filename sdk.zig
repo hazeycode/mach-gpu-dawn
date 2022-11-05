@@ -22,13 +22,6 @@ pub fn Sdk(comptime deps: anytype) type {
             // TODO(build-system): enable on Windows if we can cross compile Vulkan
             vulkan: ?bool = null,
 
-            /// Defaults to true on Linux
-            desktop_gl: ?bool = null,
-
-            /// Defaults to true on Android, Linux, Windows, Emscripten
-            // TODO(build-system): not respected at all currently
-            opengl_es: ?bool = null,
-
             /// Detects the default options to use for the given target.
             pub fn detectDefaults(self: Options, target: std.Target) Options {
                 const tag = target.os.tag;
@@ -40,31 +33,37 @@ pub fn Sdk(comptime deps: anytype) type {
                 if (options.metal == null) options.metal = tag.isDarwin();
                 if (options.vulkan == null) options.vulkan = tag == .fuchsia or linux_desktop_like;
 
-                // TODO(build-system): technically Dawn itself defaults desktop_gl to true on Windows.
-                if (options.desktop_gl == null) options.desktop_gl = linux_desktop_like;
-                options.opengl_es = false; // TODO(build-system): OpenGL ES
-                // if (options.opengl_es == null) options.opengl_es = tag == .windows or tag == .emscripten or target.isAndroid() or linux_desktop_like;
                 return options;
             }
 
             pub fn appendFlags(self: Options, flags: *std.ArrayList([]const u8), is_cpp: bool) !void {
                 if (is_cpp) try flags.append("-std=c++17");
-                if (self.linux_window_manager != null and self.linux_window_manager.? == .X11) try flags.append("-DDAWN_USE_X11");
+                if (self.linux_window_manager != null and self.linux_window_manager.? == .X11)
+                    try flags.append("-DDAWN_USE_X11");
             }
         };
 
         pub fn link(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !void {
             const opt = options.detectDefaults(step.target_info.target);
-
             try linkFromSource(b, step, opt);
         }
 
         fn linkFromSource(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !void {
             // branch: generated-2022-11-04
-            try ensureGitRepoCloned(b.allocator, "https://github.com/michal-z/dawn", "762e368b218678e19b6c1030075ec82e370806cc", sdkPath("/libs/dawn"));
+            try ensureGitRepoCloned(
+                b.allocator,
+                "https://github.com/michal-z/dawn",
+                "762e368b218678e19b6c1030075ec82e370806cc",
+                sdkPath("/libs/dawn"),
+            );
 
             // branch: mach
-            try ensureGitRepoCloned(b.allocator, "https://github.com/hexops/DirectXShaderCompiler", "cff9a6f0b7f961748b822e1d313a7205dfdecf9d", sdkPath("/libs/DirectXShaderCompiler"));
+            try ensureGitRepoCloned(
+                b.allocator,
+                "https://github.com/hexops/DirectXShaderCompiler",
+                "cff9a6f0b7f961748b822e1d313a7205dfdecf9d",
+                sdkPath("/libs/DirectXShaderCompiler"),
+            );
 
             step.addIncludePath(sdkPath("/libs/dawn/out/Debug/gen/include"));
             step.addIncludePath(sdkPath("/libs/dawn/include"));
@@ -88,7 +87,12 @@ pub fn Sdk(comptime deps: anytype) type {
             if (options.d3d12.?) _ = try buildLibDxcompiler(b, lib_dawn, options);
         }
 
-        fn ensureGitRepoCloned(allocator: std.mem.Allocator, clone_url: []const u8, revision: []const u8, dir: []const u8) !void {
+        fn ensureGitRepoCloned(
+            allocator: std.mem.Allocator,
+            clone_url: []const u8,
+            revision: []const u8,
+            dir: []const u8,
+        ) !void {
             if (isEnvVarTruthy(allocator, "NO_ENSURE_SUBMODULES") or isEnvVarTruthy(allocator, "NO_ENSURE_GIT")) {
                 return;
             }
@@ -240,17 +244,10 @@ pub fn Sdk(comptime deps: anytype) type {
             const d3d12 = "-DDAWN_ENABLE_BACKEND_D3D12";
             const metal = "-DDAWN_ENABLE_BACKEND_METAL";
             const vulkan = "-DDAWN_ENABLE_BACKEND_VULKAN";
-            const opengl = "-DDAWN_ENABLE_BACKEND_OPENGL";
-            const desktop_gl = "-DDAWN_ENABLE_BACKEND_DESKTOP_GL";
-            const opengl_es = "-DDAWN_ENABLE_BACKEND_OPENGLES";
-            const backend_null = "-DDAWN_ENABLE_BACKEND_NULL";
 
-            try flags.append(backend_null);
             if (options.d3d12.?) try flags.append(d3d12);
             if (options.metal.?) try flags.append(metal);
             if (options.vulkan.?) try flags.append(vulkan);
-            if (options.desktop_gl.?) try flags.appendSlice(&.{ opengl, desktop_gl });
-            if (options.opengl_es.?) try flags.appendSlice(&.{ opengl, opengl_es });
         }
 
         const dawn_d3d12_flags = &[_][]const u8{
@@ -391,24 +388,13 @@ pub fn Sdk(comptime deps: anytype) type {
                 try cpp_sources.append(abs_path);
             }
 
-            if (options.desktop_gl.? or options.vulkan.?) {
+            if (options.vulkan.?) {
                 inline for ([_][]const u8{
                     "src/dawn/native/SpirvValidation.cpp",
                 }) |path| {
                     const abs_path = sdkPath("/libs/dawn/" ++ path);
                     try cpp_sources.append(abs_path);
                 }
-            }
-
-            if (options.desktop_gl.?) {
-                try appendLangScannedSources(b, lib, options, .{
-                    .rel_dirs = &.{
-                        "libs/dawn/out/Debug/gen/src/dawn/native/opengl/",
-                        "libs/dawn/src/dawn/native/opengl/",
-                    },
-                    .flags = flags.items,
-                    .excluding_contains = &.{ "test", "benchmark", "mock" },
-                });
             }
 
             if (options.vulkan.?) {
@@ -448,45 +434,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 }
             }
 
-            // TODO(build-system): fuchsia: add is_fuchsia here from upstream source file
-
-            if (options.vulkan.?) {
-                // TODO(build-system): vulkan
-                //     if (enable_vulkan_validation_layers) {
-                //       defines += [
-                //         "DAWN_ENABLE_VULKAN_VALIDATION_LAYERS",
-                //         "DAWN_VK_DATA_DIR=\"$vulkan_data_subdir\"",
-                //       ]
-                //     }
-                //     if (enable_vulkan_loader) {
-                //       data_deps += [ "${dawn_vulkan_loader_dir}:libvulkan" ]
-                //       defines += [ "DAWN_ENABLE_VULKAN_LOADER" ]
-                //     }
-            }
-            // TODO(build-system): swiftshader
-            //     if (use_swiftshader) {
-            //       data_deps += [
-            //         "${dawn_swiftshader_dir}/src/Vulkan:icd_file",
-            //         "${dawn_swiftshader_dir}/src/Vulkan:swiftshader_libvulkan",
-            //       ]
-            //       defines += [
-            //         "DAWN_ENABLE_SWIFTSHADER",
-            //         "DAWN_SWIFTSHADER_VK_ICD_JSON=\"${swiftshader_icd_file_name}\"",
-            //       ]
-            //     }
-            //   }
-
-            if (options.opengl_es.?) {
-                // TODO(build-system): gles
-                //   if (use_angle) {
-                //     data_deps += [
-                //       "${dawn_angle_dir}:libEGL",
-                //       "${dawn_angle_dir}:libGLESv2",
-                //     ]
-                //   }
-                // }
-            }
-
             inline for ([_][]const u8{
                 "src/dawn/native/null/NullBackend.cpp",
             }) |path| {
@@ -502,14 +449,6 @@ pub fn Sdk(comptime deps: anytype) type {
                     try cpp_sources.append(abs_path);
                 }
             }
-            if (options.desktop_gl.?) {
-                inline for ([_][]const u8{
-                    "src/dawn/native/opengl/OpenGLBackend.cpp",
-                }) |path| {
-                    const abs_path = sdkPath("/libs/dawn/" ++ path);
-                    try cpp_sources.append(abs_path);
-                }
-            }
             if (options.vulkan.?) {
                 inline for ([_][]const u8{
                     "src/dawn/native/vulkan/VulkanBackend.cpp",
@@ -517,15 +456,6 @@ pub fn Sdk(comptime deps: anytype) type {
                     const abs_path = sdkPath("/libs/dawn/" ++ path);
                     try cpp_sources.append(abs_path);
                 }
-                // TODO(build-system): vulkan
-                //     if (enable_vulkan_validation_layers) {
-                //       data_deps =
-                //           [ "${dawn_vulkan_validation_layers_dir}:vulkan_validation_layers" ]
-                //       if (!is_android) {
-                //         data_deps +=
-                //             [ "${dawn_vulkan_validation_layers_dir}:vulkan_gen_json_files" ]
-                //       }
-                //     }
             }
 
             var cpp_flags = std.ArrayList([]const u8).init(b.allocator);
@@ -820,15 +750,6 @@ pub fn Sdk(comptime deps: anytype) type {
             if (options.metal.?) {
                 inline for ([_][]const u8{
                     "src/dawn/utils/MetalBinding.mm",
-                }) |path| {
-                    const abs_path = sdkPath("/libs/dawn/" ++ path);
-                    try cpp_sources.append(abs_path);
-                }
-            }
-
-            if (options.desktop_gl.?) {
-                inline for ([_][]const u8{
-                    "src/dawn/utils/OpenGLBinding.cpp",
                 }) |path| {
                     const abs_path = sdkPath("/libs/dawn/" ++ path);
                     try cpp_sources.append(abs_path);
