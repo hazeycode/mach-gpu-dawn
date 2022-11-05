@@ -11,10 +11,7 @@ pub fn build(b: *Builder) !void {
         .system_sdk = system_sdk,
     });
 
-    const options = gpu_dawn.Options{
-        .install_libs = true,
-        .from_source = true,
-    };
+    const options = gpu_dawn.Options{};
 
     const exe = b.addExecutable("exe", null);
     exe.setBuildMode(mode);
