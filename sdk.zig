@@ -18,8 +18,7 @@ pub fn Sdk(comptime deps: anytype) type {
             /// Defaults to true on Darwin
             metal: ?bool = null,
 
-            /// Defaults to true on Linux, Fuchsia
-            // TODO(build-system): enable on Windows if we can cross compile Vulkan
+            /// Defaults to true on Linux
             vulkan: ?bool = null,
 
             /// Detects the default options to use for the given target.
@@ -31,7 +30,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 if (options.linux_window_manager == null and linux_desktop_like) options.linux_window_manager = .X11;
                 if (options.d3d12 == null) options.d3d12 = tag == .windows;
                 if (options.metal == null) options.metal = tag.isDarwin();
-                if (options.vulkan == null) options.vulkan = tag == .fuchsia or linux_desktop_like;
+                if (options.vulkan == null) options.vulkan = linux_desktop_like;
 
                 return options;
             }
@@ -93,17 +92,16 @@ pub fn Sdk(comptime deps: anytype) type {
             revision: []const u8,
             dir: []const u8,
         ) !void {
-            if (isEnvVarTruthy(allocator, "NO_ENSURE_SUBMODULES") or isEnvVarTruthy(allocator, "NO_ENSURE_GIT")) {
-                return;
-            }
-
             ensureGit(allocator);
 
             if (std.fs.openDirAbsolute(dir, .{})) |_| {
                 const current_revision = try getCurrentGitRevision(allocator, dir);
                 if (!std.mem.eql(u8, current_revision, revision)) {
                     // Reset to the desired revision
-                    exec(allocator, &[_][]const u8{ "git", "fetch" }, dir) catch |err| std.debug.print("warning: failed to 'git fetch' in {s}: {s}\n", .{ dir, @errorName(err) });
+                    exec(allocator, &[_][]const u8{ "git", "fetch" }, dir) catch |err| std.debug.print(
+                        "warning: failed to 'git fetch' in {s}: {s}\n",
+                        .{ dir, @errorName(err) },
+                    );
                     try exec(allocator, &[_][]const u8{ "git", "reset", "--quiet", "--hard", revision }, dir);
                     try exec(allocator, &[_][]const u8{ "git", "submodule", "update", "--init", "--recursive" }, dir);
                 }
@@ -128,7 +126,9 @@ pub fn Sdk(comptime deps: anytype) type {
         }
 
         fn getCurrentGitRevision(allocator: std.mem.Allocator, cwd: []const u8) ![]const u8 {
-            const result = try std.ChildProcess.exec(.{ .allocator = allocator, .argv = &.{ "git", "rev-parse", "HEAD" }, .cwd = cwd });
+            const result = try std.ChildProcess.exec(
+                .{ .allocator = allocator, .argv = &.{ "git", "rev-parse", "HEAD" }, .cwd = cwd },
+            );
             allocator.free(result.stderr);
             if (result.stdout.len > 0) return result.stdout[0 .. result.stdout.len - 1]; // trim newline
             return result.stdout;
@@ -154,25 +154,18 @@ pub fn Sdk(comptime deps: anytype) type {
             }
         }
 
-        fn isEnvVarTruthy(allocator: std.mem.Allocator, name: []const u8) bool {
-            if (std.process.getEnvVarOwned(allocator, name)) |truthy| {
-                defer allocator.free(truthy);
-                if (std.mem.eql(u8, truthy, "true")) return true;
-                return false;
-            } else |_| {
-                return false;
-            }
-        }
-
         fn isLinuxDesktopLike(target: std.Target) bool {
             const tag = target.os.tag;
-            return !tag.isDarwin() and tag != .windows and tag != .fuchsia and tag != .emscripten and !target.isAndroid();
+            return !tag.isDarwin() and tag != .windows and tag != .fuchsia and tag != .emscripten and
+                !target.isAndroid();
         }
 
         // Builds common sources; derived from src/common/BUILD.gn
-        fn buildLibDawnCommon(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
-            const lib = step;
-
+        fn buildLibDawnCommon(
+            b: *Builder,
+            lib: *std.build.LibExeObjStep,
+            options: Options,
+        ) !*std.build.LibExeObjStep {
             var flags = std.ArrayList([]const u8).init(b.allocator);
             try flags.appendSlice(&.{
                 include("libs/dawn/src"),
@@ -194,14 +187,13 @@ pub fn Sdk(comptime deps: anytype) type {
             });
 
             var cpp_sources = std.ArrayList([]const u8).init(b.allocator);
-            if (step.target_info.target.os.tag == .macos) {
-                // TODO(build-system): pass system SDK options through
+            if (lib.target_info.target.os.tag == .macos) {
                 deps.system_sdk.include(b, lib, .{});
                 lib.linkFramework("Foundation");
                 const abs_path = sdkPath("/libs/dawn/src/dawn/common/SystemUtils_mac.mm");
                 try cpp_sources.append(abs_path);
             }
-            if (step.target_info.target.os.tag == .windows) {
+            if (lib.target_info.target.os.tag == .windows) {
                 const abs_path = sdkPath("/libs/dawn/src/dawn/common/WindowsUtils.cpp");
                 try cpp_sources.append(abs_path);
             }
@@ -214,9 +206,11 @@ pub fn Sdk(comptime deps: anytype) type {
         }
 
         // Build dawn platform sources; derived from src/dawn/platform/BUILD.gn
-        fn buildLibDawnPlatform(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
-            const lib = step;
-
+        fn buildLibDawnPlatform(
+            b: *Builder,
+            lib: *std.build.LibExeObjStep,
+            options: Options,
+        ) !*std.build.LibExeObjStep {
             var cpp_flags = std.ArrayList([]const u8).init(b.allocator);
             try options.appendFlags(&cpp_flags, true);
             try cpp_flags.appendSlice(&.{
@@ -270,8 +264,11 @@ pub fn Sdk(comptime deps: anytype) type {
         };
 
         // Builds dawn native sources; derived from src/dawn/native/BUILD.gn
-        fn buildLibDawnNative(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
-            const lib = step;
+        fn buildLibDawnNative(
+            b: *Builder,
+            lib: *std.build.LibExeObjStep,
+            options: Options,
+        ) !*std.build.LibExeObjStep {
             deps.system_sdk.include(b, lib, .{});
 
             var flags = std.ArrayList([]const u8).init(b.allocator);
@@ -284,7 +281,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 include("libs/dawn/third_party/abseil-cpp"),
                 include("libs/dawn/third_party/khronos"),
 
-                // TODO(build-system): make these optional
                 "-DTINT_BUILD_SPV_READER=1",
                 "-DTINT_BUILD_SPV_WRITER=1",
                 "-DTINT_BUILD_WGSL_READER=1",
@@ -329,8 +325,6 @@ pub fn Sdk(comptime deps: anytype) type {
             });
 
             // TODO(build-system): could allow enable_vulkan_validation_layers here. See src/dawn/native/BUILD.gn
-            // TODO(build-system): allow use_angle here. See src/dawn/native/BUILD.gn
-            // TODO(build-system): could allow use_swiftshader here. See src/dawn/native/BUILD.gn
 
             var cpp_sources = std.ArrayList([]const u8).init(b.allocator);
             if (options.d3d12.?) {
@@ -381,13 +375,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 }
             }
 
-            inline for ([_][]const u8{
-                "src/dawn/native/null/DeviceNull.cpp",
-            }) |path| {
-                const abs_path = sdkPath("/libs/dawn/" ++ path);
-                try cpp_sources.append(abs_path);
-            }
-
             if (options.vulkan.?) {
                 inline for ([_][]const u8{
                     "src/dawn/native/SpirvValidation.cpp",
@@ -406,7 +393,7 @@ pub fn Sdk(comptime deps: anytype) type {
                     .excluding_contains = &.{ "test", "benchmark", "mock" },
                 });
 
-                if (isLinuxDesktopLike(step.target_info.target)) {
+                if (isLinuxDesktopLike(lib.target_info.target)) {
                     inline for ([_][]const u8{
                         "src/dawn/native/vulkan/external_memory/MemoryService.cpp",
                         "src/dawn/native/vulkan/external_memory/MemoryServiceOpaqueFD.cpp",
@@ -415,7 +402,7 @@ pub fn Sdk(comptime deps: anytype) type {
                         const abs_path = sdkPath("/libs/dawn/" ++ path);
                         try cpp_sources.append(abs_path);
                     }
-                } else if (step.target_info.target.os.tag == .fuchsia) {
+                } else if (lib.target_info.target.os.tag == .fuchsia) {
                     inline for ([_][]const u8{
                         "src/dawn/native/vulkan/external_memory/MemoryServiceZirconHandle.cpp",
                         "src/dawn/native/vulkan/external_semaphore/SemaphoreServiceZirconHandle.cpp",
@@ -432,13 +419,6 @@ pub fn Sdk(comptime deps: anytype) type {
                         try cpp_sources.append(abs_path);
                     }
                 }
-            }
-
-            inline for ([_][]const u8{
-                "src/dawn/native/null/NullBackend.cpp",
-            }) |path| {
-                const abs_path = sdkPath("/libs/dawn/" ++ path);
-                try cpp_sources.append(abs_path);
             }
 
             if (options.d3d12.?) {
@@ -466,12 +446,9 @@ pub fn Sdk(comptime deps: anytype) type {
         }
 
         // Builds tint sources; derived from src/tint/BUILD.gn
-        fn buildLibTint(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
-            const lib = step;
-
+        fn buildLibTint(b: *Builder, lib: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
             var flags = std.ArrayList([]const u8).init(b.allocator);
             try flags.appendSlice(&.{
-                // TODO(build-system): make these optional
                 "-DTINT_BUILD_SPV_READER=1",
                 "-DTINT_BUILD_SPV_WRITER=1",
                 "-DTINT_BUILD_WGSL_READER=1",
@@ -483,7 +460,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 include("libs/dawn/"),
                 include("libs/dawn/include/tint"),
 
-                // Required for TINT_BUILD_SPV_READER=1 and TINT_BUILD_SPV_WRITER=1, if specified
                 include("libs/dawn/third_party/vulkan-deps"),
                 include("libs/dawn/third_party/vulkan-deps/spirv-tools/src"),
                 include("libs/dawn/third_party/vulkan-deps/spirv-tools/src/include"),
@@ -499,22 +475,28 @@ pub fn Sdk(comptime deps: anytype) type {
                     "libs/dawn/src/tint",
                     "libs/dawn/src/tint/diagnostic/",
                     "libs/dawn/src/tint/inspector/",
-                    "libs/dawn/src/tint/reader/",
                     "libs/dawn/src/tint/resolver/",
                     "libs/dawn/src/tint/utils/",
                     "libs/dawn/src/tint/text/",
                     "libs/dawn/src/tint/transform/",
                     "libs/dawn/src/tint/transform/utils",
+                    "libs/dawn/src/tint/reader/",
                     "libs/dawn/src/tint/writer/",
                     "libs/dawn/src/tint/ast/",
-                    "libs/dawn/src/tint/val/",
                 },
                 .flags = flags.items,
-                .excluding_contains = &.{ "test", "bench", "printer_windows", "printer_linux", "printer_other", "glsl.cc" },
+                .excluding_contains = &.{
+                    "test",
+                    "bench",
+                    "printer_windows",
+                    "printer_linux",
+                    "printer_other",
+                    "glsl.cc",
+                },
             });
 
             var cpp_sources = std.ArrayList([]const u8).init(b.allocator);
-            switch (step.target_info.target.os.tag) {
+            switch (lib.target_info.target.os.tag) {
                 .windows => try cpp_sources.append(sdkPath("/libs/dawn/src/tint/diagnostic/printer_windows.cc")),
                 .linux => try cpp_sources.append(sdkPath("/libs/dawn/src/tint/diagnostic/printer_linux.cc")),
                 else => try cpp_sources.append(sdkPath("/libs/dawn/src/tint/diagnostic/printer_other.cc")),
@@ -547,7 +529,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 .excluding_contains = &.{ "test", "bench" },
             });
 
-            // TODO(build-system): make optional
             // libtint_wgsl_reader_src
             try appendLangScannedSources(b, lib, options, .{
                 .rel_dirs = &.{
@@ -557,7 +538,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 .excluding_contains = &.{ "test", "bench" },
             });
 
-            // TODO(build-system): make optional
             // libtint_wgsl_writer_src
             try appendLangScannedSources(b, lib, options, .{
                 .rel_dirs = &.{
@@ -567,7 +547,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 .excluding_contains = &.{ "test", "bench" },
             });
 
-            // TODO(build-system): make optional
             // libtint_msl_writer_src
             try appendLangScannedSources(b, lib, options, .{
                 .rel_dirs = &.{
@@ -577,7 +556,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 .excluding_contains = &.{ "test", "bench" },
             });
 
-            // TODO(build-system): make optional
             // libtint_hlsl_writer_src
             try appendLangScannedSources(b, lib, options, .{
                 .rel_dirs = &.{
@@ -587,7 +565,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 .excluding_contains = &.{ "test", "bench" },
             });
 
-            // TODO(build-system): make optional
             // libtint_glsl_writer_src
             try appendLangScannedSources(b, lib, options, .{
                 .rel_dirs = &.{
@@ -604,10 +581,13 @@ pub fn Sdk(comptime deps: anytype) type {
             return lib;
         }
 
-        // Builds third_party/vulkan-deps/spirv-tools sources; derived from third_party/vulkan-deps/spirv-tools/src/BUILD.gn
-        fn buildLibSPIRVTools(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
-            const lib = step;
-
+        // Builds third_party/vulkan-deps/spirv-tools sources;
+        // derived from third_party/vulkan-deps/spirv-tools/src/BUILD.gn
+        fn buildLibSPIRVTools(
+            b: *Builder,
+            lib: *std.build.LibExeObjStep,
+            options: Options,
+        ) !*std.build.LibExeObjStep {
             var flags = std.ArrayList([]const u8).init(b.allocator);
             try flags.appendSlice(&.{
                 include("libs/dawn"),
@@ -664,11 +644,14 @@ pub fn Sdk(comptime deps: anytype) type {
         // $ find third_party/abseil-cpp/absl | grep '\.cc' | grep -v 'test' | grep -v 'benchmark' | grep -v gaussian_distribution_gentables | grep -v print_hash_of | grep -v chi_square
         // ```
         //
-        fn buildLibAbseilCpp(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
-            const lib = step;
+        fn buildLibAbseilCpp(
+            b: *Builder,
+            lib: *std.build.LibExeObjStep,
+            options: Options,
+        ) !*std.build.LibExeObjStep {
             deps.system_sdk.include(b, lib, .{});
 
-            const target = step.target_info.target;
+            const target = lib.target_info.target;
             if (target.os.tag == .macos) lib.linkFramework("CoreFoundation");
             if (target.os.tag == .windows) lib.linkSystemLibraryName("bcrypt");
 
@@ -711,15 +694,23 @@ pub fn Sdk(comptime deps: anytype) type {
                     "libs/dawn/third_party/abseil-cpp/absl/base/",
                 },
                 .flags = flags.items,
-                .excluding_contains = &.{ "_test", "_testing", "benchmark", "print_hash_of.cc", "gaussian_distribution_gentables.cc" },
+                .excluding_contains = &.{
+                    "_test",
+                    "_testing",
+                    "benchmark",
+                    "print_hash_of.cc",
+                    "gaussian_distribution_gentables.cc",
+                },
             });
             return lib;
         }
 
         // Builds dawn utils sources; derived from src/dawn/utils/BUILD.gn
-        fn buildLibDawnUtils(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
-            const lib = step;
-
+        fn buildLibDawnUtils(
+            b: *Builder,
+            lib: *std.build.LibExeObjStep,
+            options: Options,
+        ) !*std.build.LibExeObjStep {
             var flags = std.ArrayList([]const u8).init(b.allocator);
             try appendDawnEnableBackendTypeFlags(&flags, options);
             try flags.appendSlice(&.{
@@ -773,13 +764,15 @@ pub fn Sdk(comptime deps: anytype) type {
         }
 
         // Buids dxcompiler sources; derived from libs/DirectXShaderCompiler/CMakeLists.txt
-        fn buildLibDxcompiler(b: *Builder, step: *std.build.LibExeObjStep, options: Options) !*std.build.LibExeObjStep {
-            const lib = step;
+        fn buildLibDxcompiler(
+            b: *Builder,
+            lib: *std.build.LibExeObjStep,
+            options: Options,
+        ) !*std.build.LibExeObjStep {
             deps.system_sdk.include(b, lib, .{});
 
             lib.linkSystemLibraryName("oleaut32");
             lib.linkSystemLibraryName("ole32");
-            lib.linkSystemLibraryName("dbghelp");
             lib.linkSystemLibraryName("dxguid");
             lib.linkSystemLibraryName("c++");
 
@@ -805,7 +798,6 @@ pub fn Sdk(comptime deps: anytype) type {
             });
 
             try appendLangScannedSources(b, lib, options, .{
-                .zero_debug_symbols = true,
                 .rel_dirs = &.{
                     "libs/DirectXShaderCompiler/lib/Analysis/IPA",
                     "libs/DirectXShaderCompiler/lib/Analysis",
@@ -838,7 +830,6 @@ pub fn Sdk(comptime deps: anytype) type {
             });
 
             try appendLangScannedSources(b, lib, options, .{
-                .zero_debug_symbols = true,
                 .rel_dirs = &.{
                     "libs/DirectXShaderCompiler/lib/Support",
                 },
@@ -852,7 +843,6 @@ pub fn Sdk(comptime deps: anytype) type {
             });
 
             try appendLangScannedSources(b, lib, options, .{
-                .zero_debug_symbols = true,
                 .rel_dirs = &.{
                     "libs/DirectXShaderCompiler/lib/Bitcode/Reader",
                 },
@@ -869,7 +859,6 @@ pub fn Sdk(comptime deps: anytype) type {
             step: *std.build.LibExeObjStep,
             options: Options,
             args: struct {
-                zero_debug_symbols: bool = false,
                 flags: []const []const u8,
                 rel_dirs: []const []const u8 = &.{},
                 objc: bool = false,
