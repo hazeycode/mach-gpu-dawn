@@ -287,7 +287,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 "-DTINT_BUILD_WGSL_WRITER=1",
                 "-DTINT_BUILD_MSL_WRITER=1",
                 "-DTINT_BUILD_HLSL_WRITER=1",
-                "-DTINT_BUILD_GLSL_WRITER=1",
+                "-DTINT_BUILD_GLSL_WRITER=0",
 
                 include("libs/dawn/"),
                 include("libs/dawn/include/tint"),
@@ -455,7 +455,7 @@ pub fn Sdk(comptime deps: anytype) type {
                 "-DTINT_BUILD_WGSL_WRITER=1",
                 "-DTINT_BUILD_MSL_WRITER=1",
                 "-DTINT_BUILD_HLSL_WRITER=1",
-                "-DTINT_BUILD_GLSL_WRITER=1",
+                "-DTINT_BUILD_GLSL_WRITER=0",
 
                 include("libs/dawn/"),
                 include("libs/dawn/include/tint"),
@@ -565,15 +565,6 @@ pub fn Sdk(comptime deps: anytype) type {
                 .excluding_contains = &.{ "test", "bench" },
             });
 
-            // libtint_glsl_writer_src
-            try appendLangScannedSources(b, lib, options, .{
-                .rel_dirs = &.{
-                    "libs/dawn/src/tint/writer/glsl/",
-                },
-                .flags = flags.items,
-                .excluding_contains = &.{ "test", "bench" },
-            });
-
             var cpp_flags = std.ArrayList([]const u8).init(b.allocator);
             try cpp_flags.appendSlice(flags.items);
             try options.appendFlags(&cpp_flags, true);
@@ -675,23 +666,25 @@ pub fn Sdk(comptime deps: anytype) type {
                     "libs/dawn/third_party/abseil-cpp/absl/strings/",
                     "libs/dawn/third_party/abseil-cpp/absl/strings/internal/",
                     "libs/dawn/third_party/abseil-cpp/absl/strings/internal/str_format/",
-                    "libs/dawn/third_party/abseil-cpp/absl/types/",
-                    "libs/dawn/third_party/abseil-cpp/absl/flags/internal/",
-                    "libs/dawn/third_party/abseil-cpp/absl/flags/",
-                    "libs/dawn/third_party/abseil-cpp/absl/synchronization/",
-                    "libs/dawn/third_party/abseil-cpp/absl/synchronization/internal/",
-                    "libs/dawn/third_party/abseil-cpp/absl/hash/internal/",
-                    "libs/dawn/third_party/abseil-cpp/absl/debugging/",
-                    "libs/dawn/third_party/abseil-cpp/absl/debugging/internal/",
-                    "libs/dawn/third_party/abseil-cpp/absl/status/",
-                    "libs/dawn/third_party/abseil-cpp/absl/time/internal/cctz/src/",
-                    "libs/dawn/third_party/abseil-cpp/absl/time/",
-                    "libs/dawn/third_party/abseil-cpp/absl/container/internal/",
                     "libs/dawn/third_party/abseil-cpp/absl/numeric/",
-                    "libs/dawn/third_party/abseil-cpp/absl/random/",
-                    "libs/dawn/third_party/abseil-cpp/absl/random/internal/",
                     "libs/dawn/third_party/abseil-cpp/absl/base/internal/",
                     "libs/dawn/third_party/abseil-cpp/absl/base/",
+
+                    // NOTE(mziulek): Still builds fine without those and saves ~1.5 MB
+                    //"libs/dawn/third_party/abseil-cpp/absl/types/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/flags/internal/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/flags/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/synchronization/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/synchronization/internal/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/hash/internal/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/debugging/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/debugging/internal/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/status/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/time/internal/cctz/src/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/time/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/container/internal/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/random/",
+                    //"libs/dawn/third_party/abseil-cpp/absl/random/internal/",
                 },
                 .flags = flags.items,
                 .excluding_contains = &.{
@@ -723,7 +716,6 @@ pub fn Sdk(comptime deps: anytype) type {
             var cpp_sources = std.ArrayList([]const u8).init(b.allocator);
             inline for ([_][]const u8{
                 "src/dawn/utils/BackendBinding.cpp",
-                "src/dawn/utils/NullBinding.cpp",
             }) |path| {
                 const abs_path = sdkPath("/libs/dawn/" ++ path);
                 try cpp_sources.append(abs_path);
@@ -771,7 +763,6 @@ pub fn Sdk(comptime deps: anytype) type {
         ) !*std.build.LibExeObjStep {
             deps.system_sdk.include(b, lib, .{});
 
-            lib.linkSystemLibraryName("oleaut32");
             lib.linkSystemLibraryName("ole32");
             lib.linkSystemLibraryName("dxguid");
             lib.linkSystemLibraryName("c++");
