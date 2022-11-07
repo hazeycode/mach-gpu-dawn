@@ -56,11 +56,11 @@ pub fn Sdk(comptime deps: anytype) type {
                 sdkPath("/libs/dawn"),
             );
 
-            // branch: mach
+            // branch: release-1.7.2207
             try ensureGitRepoCloned(
                 b.allocator,
-                "https://github.com/hexops/DirectXShaderCompiler",
-                "cff9a6f0b7f961748b822e1d313a7205dfdecf9d",
+                "https://github.com/michal-z/DirectXShaderCompiler",
+                "516b26406ff515d28b42c3e61b497058e81622ba",
                 sdkPath("/libs/DirectXShaderCompiler"),
             );
 
@@ -103,7 +103,8 @@ pub fn Sdk(comptime deps: anytype) type {
                         .{ dir, @errorName(err) },
                     );
                     try exec(allocator, &[_][]const u8{ "git", "reset", "--quiet", "--hard", revision }, dir);
-                    try exec(allocator, &[_][]const u8{ "git", "submodule", "update", "--init", "--recursive" }, dir);
+                    // NOTE(mziulek): We don't need submodules.
+                    //try exec(allocator, &[_][]const u8{ "git", "submodule", "update", "--init", "--recursive" }, dir);
                 }
                 return;
             } else |err| return switch (err) {
@@ -112,7 +113,8 @@ pub fn Sdk(comptime deps: anytype) type {
 
                     try exec(allocator, &[_][]const u8{ "git", "clone", "-c", "core.longpaths=true", clone_url, dir }, sdkPath("/"));
                     try exec(allocator, &[_][]const u8{ "git", "reset", "--quiet", "--hard", revision }, dir);
-                    try exec(allocator, &[_][]const u8{ "git", "submodule", "update", "--init", "--recursive" }, dir);
+                    // NOTE(mziulek): We don't need submodules.
+                    //try exec(allocator, &[_][]const u8{ "git", "submodule", "update", "--init", "--recursive" }, dir);
                     return;
                 },
                 else => err,
@@ -790,58 +792,77 @@ pub fn Sdk(comptime deps: anytype) type {
 
             try appendLangScannedSources(b, lib, options, .{
                 .rel_dirs = &.{
-                    "libs/DirectXShaderCompiler/lib/Analysis/IPA",
-                    "libs/DirectXShaderCompiler/lib/Analysis",
-                    "libs/DirectXShaderCompiler/lib/AsmParser",
-                    "libs/DirectXShaderCompiler/lib/Bitcode/Writer",
-                    "libs/DirectXShaderCompiler/lib/DxcBindingTable",
                     "libs/DirectXShaderCompiler/lib/DxcSupport",
-                    "libs/DirectXShaderCompiler/lib/DxilContainer",
-                    "libs/DirectXShaderCompiler/lib/DxilPIXPasses",
-                    "libs/DirectXShaderCompiler/lib/DxilRootSignature",
-                    "libs/DirectXShaderCompiler/lib/DXIL",
-                    "libs/DirectXShaderCompiler/lib/DxrFallback",
-                    "libs/DirectXShaderCompiler/lib/HLSL",
-                    "libs/DirectXShaderCompiler/lib/IRReader",
-                    "libs/DirectXShaderCompiler/lib/IR",
-                    "libs/DirectXShaderCompiler/lib/Linker",
-                    "libs/DirectXShaderCompiler/lib/Miniz",
-                    "libs/DirectXShaderCompiler/lib/Option",
-                    "libs/DirectXShaderCompiler/lib/PassPrinters",
-                    "libs/DirectXShaderCompiler/lib/Passes",
-                    "libs/DirectXShaderCompiler/lib/ProfileData",
-                    "libs/DirectXShaderCompiler/lib/Target",
-                    "libs/DirectXShaderCompiler/lib/Transforms/InstCombine",
-                    "libs/DirectXShaderCompiler/lib/Transforms/IPO",
-                    "libs/DirectXShaderCompiler/lib/Transforms/Scalar",
-                    "libs/DirectXShaderCompiler/lib/Transforms/Utils",
-                    "libs/DirectXShaderCompiler/lib/Transforms/Vectorize",
+
+                    // NOTE(mziulek): We don't need it for now.
+                    //"libs/DirectXShaderCompiler/lib/Analysis/IPA",
+                    //"libs/DirectXShaderCompiler/lib/Analysis",
+                    //"libs/DirectXShaderCompiler/lib/AsmParser",
+                    //"libs/DirectXShaderCompiler/lib/Bitcode/Writer",
+                    //"libs/DirectXShaderCompiler/lib/DxcBindingTable",
+                    //"libs/DirectXShaderCompiler/lib/DxilContainer",
+                    //"libs/DirectXShaderCompiler/lib/DxilPIXPasses",
+                    //"libs/DirectXShaderCompiler/lib/DxilRootSignature",
+                    //"libs/DirectXShaderCompiler/lib/DXIL",
+                    //"libs/DirectXShaderCompiler/lib/DxrFallback",
+                    //"libs/DirectXShaderCompiler/lib/HLSL",
+                    //"libs/DirectXShaderCompiler/lib/IRReader",
+                    //"libs/DirectXShaderCompiler/lib/IR",
+                    //"libs/DirectXShaderCompiler/lib/Linker",
+                    //"libs/DirectXShaderCompiler/lib/Miniz",
+                    //"libs/DirectXShaderCompiler/lib/Option",
+                    //"libs/DirectXShaderCompiler/lib/PassPrinters",
+                    //"libs/DirectXShaderCompiler/lib/Passes",
+                    //"libs/DirectXShaderCompiler/lib/ProfileData",
+                    //"libs/DirectXShaderCompiler/lib/Target",
+                    //"libs/DirectXShaderCompiler/lib/Transforms/InstCombine",
+                    //"libs/DirectXShaderCompiler/lib/Transforms/IPO",
+                    //"libs/DirectXShaderCompiler/lib/Transforms/Scalar",
+                    //"libs/DirectXShaderCompiler/lib/Transforms/Utils",
+                    //"libs/DirectXShaderCompiler/lib/Transforms/Vectorize",
                 },
                 .flags = flags.items,
             });
 
-            try appendLangScannedSources(b, lib, options, .{
-                .rel_dirs = &.{
-                    "libs/DirectXShaderCompiler/lib/Support",
-                },
-                .flags = flags.items,
-                .excluding_contains = &.{
-                    "DynamicLibrary.cpp", // ignore, HLSL_IGNORE_SOURCES
-                    "PluginLoader.cpp", // ignore, HLSL_IGNORE_SOURCES
-                    "Path.cpp", // ignore, LLVM_INCLUDE_TESTS
-                    "DynamicLibrary.cpp", // ignore
-                },
-            });
+            if (false) { // NOTE(mziulek): We don't need it for now.
+                try appendLangScannedSources(b, lib, options, .{
+                    .rel_dirs = &.{
+                        "libs/DirectXShaderCompiler/lib/Support",
+                    },
+                    .flags = flags.items,
+                    .excluding_contains = &.{
+                        "DynamicLibrary.cpp", // ignore, HLSL_IGNORE_SOURCES
+                        "PluginLoader.cpp", // ignore, HLSL_IGNORE_SOURCES
+                        "Path.cpp", // ignore, LLVM_INCLUDE_TESTS
+                        "DynamicLibrary.cpp", // ignore
+                    },
+                });
 
-            try appendLangScannedSources(b, lib, options, .{
-                .rel_dirs = &.{
-                    "libs/DirectXShaderCompiler/lib/Bitcode/Reader",
-                },
-                .flags = flags.items,
-                .excluding_contains = &.{
-                    "BitReader.cpp", // ignore
-                },
-            });
+                try appendLangScannedSources(b, lib, options, .{
+                    .rel_dirs = &.{
+                        "libs/DirectXShaderCompiler/lib/Bitcode/Reader",
+                    },
+                    .flags = flags.items,
+                    .excluding_contains = &.{
+                        "BitReader.cpp", // ignore
+                    },
+                });
+            }
+
+            // NOTE(mziulek): The only file we need for now.
+            var cpp_sources = std.ArrayList([]const u8).init(b.allocator);
+            inline for ([_][]const u8{
+                "lib/Support/ThreadLocal.cpp",
+            }) |path| {
+                const abs_path = sdkPath("/libs/DirectXShaderCompiler/" ++ path);
+                try cpp_sources.append(abs_path);
+            }
+
+            var cpp_flags = std.ArrayList([]const u8).init(b.allocator);
+            try cpp_flags.appendSlice(flags.items);
+            try options.appendFlags(&cpp_flags, true);
+            lib.addCSourceFiles(cpp_sources.items, cpp_flags.items);
+
             return lib;
         }
 
